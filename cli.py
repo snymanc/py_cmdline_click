@@ -32,6 +32,7 @@ def current(location, api_key):
     A little weather tool that shows you the current weather in a LOCATION of
     your choice. Provide the city name and optionally a two-digit country code.
     Here are two examples:
+    
     1. London,UK
 
     2. Johannesburg
@@ -42,6 +43,12 @@ def current(location, api_key):
     weather = current_weather(location, api_key)
     print(f"The weather in {location} right now: {weather}.")
 
+@main.command()
+def config():
+    """
+    Store configuration values in a file.
+    """
+    print("I handle the configuration.")
 
 if __name__ == "__main__":
     main()
