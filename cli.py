@@ -5,6 +5,9 @@ import click
 import requests
 
 
+# SAMPLE_API_KEY = 'c36164e51783d1af218c9b21e554625b'
+
+
 class ApiKey(click.ParamType):
     name = 'api-key'
 
@@ -21,13 +24,8 @@ class ApiKey(click.ParamType):
         return value
 
 
-@click.group()
-def main():
-    pass
-
-
 def current_weather(location, api_key):
-    url = 'http://api.openweathermap.org/data/2.5/weather'
+    url = 'https://api.openweathermap.org/data/2.5/weather'
 
     query_params = {
         'q': location,
@@ -39,14 +37,19 @@ def current_weather(location, api_key):
     return response.json()['weather'][0]['description']
 
 
-@main.command()
-@click.argument('location')
+@click.group()
 @click.option(
     '--api-key', '-a',
-    envvar="API_KEY",
+    type=ApiKey(),
     help='your API key for the OpenWeatherMap API',
 )
-def current(location, api_key):
+@click.option(
+    '--config-file', '-c',
+    type=click.Path(),
+    default='.weather.cfg',
+)
+@click.pass_context
+def main(ctx, api_key, config_file):
     """
     A little weather tool that shows you the current weather in a LOCATION of
     your choice. Provide the city name and optionally a two-digit country code.
@@ -59,26 +62,46 @@ def current(location, api_key):
     You need a valid API key from OpenWeatherMap for the tool to work. You can
     sign up for a free account at https://openweathermap.org/appid.
     """
-    weather = current_weather(location, api_key)
-    print(f"The weather in {location} right now: {weather}.")
+    filename = os.path.expanduser(config_file)
+
+    if not api_key and os.path.exists(filename):
+        with open(filename) as cfg:
+            api_key = cfg.read()
+
+    ctx.obj = {
+        'api_key': api_key,
+        'config_file': filename,
+    }
 
 
 @main.command()
-@click.option(
-    '--api-key', '-a',
-    type=ApiKey(),
-    help='your API key for the OpenWeatherMap API',
-)
-def config(api_key):
+@click.pass_context
+def config(ctx):
     """
-    Store configuration values in a file.
+    Store configuration values in a file, e.g. the API key for OpenWeatherMap.
     """
-    config_file = os.path.expanduser('.weather.cfg')
+    config_file = ctx.obj['config_file']
 
-    api_key = click.prompt("Please enter your API key?", default=api_key)
+    api_key = click.prompt(
+        "Please enter your API key",
+        default=ctx.obj.get('api_key', '')
+    )
 
     with open(config_file, 'w') as cfg:
         cfg.write(api_key)
+
+
+@main.command()
+@click.argument('location')
+@click.pass_context
+def current(ctx, location):
+    """
+    Show the current weather for a location using OpenWeatherMap data.
+    """
+    api_key = ctx.obj['api_key']
+
+    weather = current_weather(location, api_key)
+    print(f"The weather in {location} right now: {weather}.")
 
 
 if __name__ == "__main__":
